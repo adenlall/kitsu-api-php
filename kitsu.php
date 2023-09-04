@@ -1,20 +1,20 @@
 <?php
+
+require_once(realpath(dirname(__FILE__) . '/../classes/cache.php'));
+
 class Kitsu {
 	
 	public $type;
 	public $limitation;
-	//public $cache_expiration;
+	public $cache;
 	
-	function __construct($type,$limitation, $cache_expiration = 9000)
+	public function __construct($type,$limitation)
 	{
 		$this->type=$type;
 		$this->limitation=$limitation;
-		//$this->cache_expiration=$cache_expiration;
+		$this->cache=new Cache();
 	}
 	public function get_details_with_name($query){
-		//$exists = $this->check_cache($query);
-		//if(!$exists){
-		
 			$res = $this->get_by_name($query);
 			if(isset($res["data"]) && count($res["data"])!==0){
 				$id = $res["data"][0]["id"];
@@ -31,10 +31,8 @@ class Kitsu {
 				return $this->get_details_with_name($this->replace_slug($query));//$this->cache($query, $this->get_details_with_name($this->replace_slug($query)));
 			}
 			
-		//} else {
-		//	return $exists;
-		//}
 	}
+
 	// public methods
 	public function get_anime($id){
 		return $this->response($id);
@@ -57,29 +55,11 @@ class Kitsu {
 			$ubject
 		);
 	}
-	private function check_cache($key){
-		$cache = apcu_fetch($key);
-		if ($cache) {
-			return $cache;
-		} else {
-			return false;
-		}
-	}
-	private function cache($key, $data){
-		apcu_store($key, $data, $this->cache_expiration);
-		return $data;
-	}
 	private function response($param){
-		$ch = curl_init();
-		curl_setopt( $ch,
-					 CURLOPT_URL,
-					 "https://kitsu.io/api/edge/anime/{$param}"
-		 );
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-		curl_setopt($ch, CURLOPT_HEADER, FALSE);
-		$response = curl_exec($ch);
-		curl_close($ch);
-		return $this->parse($response);
+		return $this->parse($this->cache->get_http(
+			"https://kitsu.io/api/edge/anime/{$param}",
+			str_replace("/","-",$param)
+		));
 	}
 	private function parse($response){
 		if(isset($response)){
